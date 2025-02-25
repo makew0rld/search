@@ -3,12 +3,12 @@ module github.com/makew0rld/search
 go 1.24.0
 
 require (
+	github.com/PuerkitoBio/goquery v1.5.1
 	github.com/gocolly/colly/v2 v2.1.1-0.20240605174350-99b7fb1b87d1
 	github.com/mattn/go-sqlite3 v1.14.24
 )
 
 require (
-	github.com/PuerkitoBio/goquery v1.5.1 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/antchfx/htmlquery v1.2.3 // indirect
 	github.com/antchfx/xmlquery v1.3.4 // indirect
@@ -26,3 +26,5 @@ require (
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 )
+
+replace github.com/gocolly/colly/v2 => github.com/makew0rld/colly/v2 v2.0.0-20250225030254-4906265dd4e7

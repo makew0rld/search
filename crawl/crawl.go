@@ -21,6 +21,8 @@ import (
 // including to remove URLs that were previously crawled in the database and so
 // should be skipped.
 func Crawl(urls []string) error {
+	slog.Debug("crawl.Crawl", "len(urls)", len(urls))
+
 	c := colly.NewCollector(
 		colly.MaxDepth(1),
 		colly.UserAgent("makeworld personal search"),
@@ -33,6 +35,12 @@ func Crawl(urls []string) error {
 
 	// The heart of the crawl logic
 	c.OnResponse(onResponse)
+	c.OnError(func(r *colly.Response, err error) {
+		slog.Warn("http error", "url", r.Request.URL, "err", err)
+	})
+	c.OnRequest(func(r *colly.Request) {
+		slog.Info("visited", "id", r.ID, "url", r.URL)
+	})
 
 	q, _ := queue.New(5, nil) // This too
 	for _, url := range urls {
@@ -44,7 +52,7 @@ func Crawl(urls []string) error {
 func onResponse(r *colly.Response) {
 	// Skip errors, extract title, convert to plain text, insert in database
 
-	slog.Info("visiting", "id", r.Request.ID, "url", r.Request.URL)
+	slog.Debug("got response", "id", r.Request.ID, "url", r.Request.URL)
 
 	if r.StatusCode != 200 {
 		slog.Warn("http", "code", r.StatusCode, "url", r.Request.URL)
