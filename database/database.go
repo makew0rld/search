@@ -42,14 +42,17 @@ type Page struct {
 func InsertPage(page *Page) error {
 	_, err := db.Exec(
 		`INSERT INTO pages VALUES (?,?,?,?)`,
-		page.URL, page.Title, page.Body, page.CrawledAt,
+		page.URL, page.Title, page.Body, page.CrawledAt.Format(time.RFC3339),
 	)
 	return err
 }
 
-func QueryPage(query string) ([]*Page, error) {
+// QueryPages returns results for the given FTS5 query string.
+//
+//	The Body field of Page is never included for efficiency.
+func QueryPages(query string) ([]*Page, error) {
 	rows, err := db.Query(
-		`SELECT * FROM pages WHERE pages MATCH ? ORDER BY rank`,
+		`SELECT url, title, crawled_at FROM pages WHERE pages MATCH ? ORDER BY rank`,
 		query)
 	if err != nil {
 		return nil, err
@@ -57,12 +60,14 @@ func QueryPage(query string) ([]*Page, error) {
 	defer rows.Close()
 
 	pages := make([]*Page, 0)
+	var crawledAt string
 	for rows.Next() {
 		var page Page
-		err := rows.Scan(&page.URL, &page.Title, &page.Body, &page.CrawledAt)
+		err := rows.Scan(&page.URL, &page.Title, &crawledAt)
 		if err != nil {
 			return nil, err
 		}
+		page.CrawledAt, _ = time.Parse(time.RFC3339, crawledAt)
 		pages = append(pages, &page)
 	}
 	return pages, rows.Err()
