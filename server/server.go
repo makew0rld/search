@@ -5,6 +5,8 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"time"
 
 	"github.com/makew0rld/search/database"
 )
@@ -20,6 +22,26 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type searchResult struct {
+	Title     string
+	URL       string
+	CrawledAt time.Time
+	Host      string
+}
+
+func searchResultFromPage(p *database.Page) *searchResult {
+	var host string
+	u, err := url.Parse(p.URL)
+	if err == nil {
+		host = u.Host
+	}
+	return &searchResult{
+		Title:     p.Title,
+		URL:       p.URL,
+		CrawledAt: p.CrawledAt,
+		Host:      host,
+	}
+}
 func searchHandler(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		slog.Debug("searchHandler", "err", err)
@@ -39,7 +61,19 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	err = tmpls.ExecuteTemplate(w, "search.tmpl", pages)
+
+	data := struct {
+		Results []*searchResult
+		Query   string
+	}{
+		Results: make([]*searchResult, len(pages)),
+		Query:   query,
+	}
+	for i, page := range pages {
+		data.Results[i] = searchResultFromPage(page)
+	}
+
+	err = tmpls.ExecuteTemplate(w, "search.tmpl", data)
 	if err != nil {
 		slog.Error("searchHandler", "err", err)
 		http.Error(w, err.Error(), 500)

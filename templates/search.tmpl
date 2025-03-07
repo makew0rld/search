@@ -1,5 +1,9 @@
 {{ template "header" }}
-{{ range . }}
-<p>{{.}}</p>
+<form action="/search" method="get">
+  <input type=text name=q id=q required value="{{.Query}}"/>
+  <input type=submit value=Search />
+</form>
+{{ range .Results }}
+<p><a href="{{.URL}}">{{.Title}}</a> ({{.Host}})</p>
 {{ end }}
 {{ template "footer" }}
