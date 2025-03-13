@@ -7,6 +7,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/makew0rld/search/crawl"
 	"github.com/makew0rld/search/database"
@@ -26,7 +27,12 @@ func main() {
 
 	switch os.Args[1] {
 	case "index":
-		f, err := os.Open(os.Args[1])
+		if err := database.Init("index.db"); err != nil {
+			slog.Error("database.Init", "err", err)
+			os.Exit(1)
+		}
+
+		f, err := os.Open(os.Args[2])
 		if err != nil {
 			slog.Error("file open", "err", err)
 			os.Exit(1)
@@ -37,24 +43,33 @@ func main() {
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
 			line := scanner.Text()
-			// Skip comments
-			if line[0] == '#' {
-				continue
-			}
 			// Skip blank lines
 			if len(strings.TrimSpace(line)) == 0 {
 				continue
 			}
+			// Skip comments
+			if line[0] == '#' {
+				continue
+			}
+
+			// TODO: normalize URL
+
+			// Don't re-crawl recent URLs
+			crawledAt, err := database.WhenCrawled(line)
+			if err != nil {
+				slog.Error("database.WhenCrawled", "err", err)
+				os.Exit(1)
+			}
+			if crawledAt.After(time.Now().Add(-time.Hour * 24)) {
+				slog.Debug("ingest: skipping already crawled recently", "url", line)
+				continue
+			}
+
 			urls = append(urls, line)
 		}
 		f.Close()
 		if err := scanner.Err(); err != nil {
 			slog.Error("file read", "err", err)
-			os.Exit(1)
-		}
-
-		if err := database.Init("index.db"); err != nil {
-			slog.Error("database.Init", "err", err)
 			os.Exit(1)
 		}
 

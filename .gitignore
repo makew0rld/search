@@ -3,3 +3,4 @@ search
 *.db
 *.txt
 *.log
+*.bak

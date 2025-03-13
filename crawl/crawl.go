@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"log/slog"
 	"mime"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -40,9 +41,25 @@ func Crawl(urls []string) error {
 	})
 	c.OnRequest(func(r *colly.Request) {
 		slog.Info("visited", "id", r.ID, "url", r.URL)
+		// Log initial URL
+		if err := database.LogURL(r.URL.String(), time.Now()); err != nil {
+			slog.Error("database.LogURL", "url", r.URL, "err", err)
+		}
+	})
+	c.SetRedirectHandler(func(req *http.Request, via []*http.Request) error {
+		// Just log redirect URLs to reduce re-crawling of them in the future
+		if err := database.LogURL(req.URL.String(), time.Now()); err != nil {
+			slog.Error("database.LogURL", "url", req.URL, "err", err)
+		}
+		// Keep max of 10 redirects
+		// https://github.com/gocolly/colly/blob/bbf3f10c37205136e9d4f46fe8118205cc505a67/colly.go#L1270
+		if len(via) >= 10 {
+			return http.ErrUseLastResponse
+		}
+		return nil
 	})
 
-	q, _ := queue.New(5, nil) // This too
+	q, _ := queue.New(5, nil) // This is from lieu too
 	for _, url := range urls {
 		q.AddURL(url)
 	}
@@ -55,6 +72,7 @@ func onResponse(r *colly.Response) {
 	slog.Debug("got response", "id", r.Request.ID, "url", r.Request.URL)
 
 	if r.StatusCode != 200 {
+		// XXX: seemingly this never runs, I guess redirects and errors are already handled
 		slog.Warn("http", "code", r.StatusCode, "url", r.Request.URL)
 		return
 	}
@@ -99,11 +117,17 @@ func onResponse(r *colly.Response) {
 	}
 	slog.Debug("set title", "title", title, "url", r.Request.URL)
 
-	err := database.InsertPage(&database.Page{
+	crawledAt := time.Now()
+	err := database.LogURL(r.Request.URL.String(), crawledAt)
+	if err != nil {
+		slog.Error("database.LogURL", "url", r.Request.URL, "err", err)
+		// Continuing after this error is tolerable
+	}
+	err = database.InsertPage(&database.Page{
 		URL:       r.Request.URL.String(),
 		Title:     title,
 		Body:      plain,
-		CrawledAt: time.Now(),
+		CrawledAt: crawledAt,
 	})
 	if err != nil {
 		slog.Error("database.InsertPage", "url", r.Request.URL, "err", err)
