@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/makew0rld/search/database"
@@ -42,6 +43,18 @@ func searchResultFromPage(p *database.Page) *searchResult {
 		Host:      host,
 	}
 }
+
+// sanitizeQuery prepares user input for the database
+// It assumes you just want to search for a group of unordered words
+func sanitizeQuery(query string) string {
+	// https://www.sqlite.org/fts5.html#full_text_query_syntax
+	// https://stackoverflow.com/a/79510332/7361270
+	query = strings.ReplaceAll(query, `"`, `""`) // Escape quotes
+	words := strings.Fields(query)
+	// Quote each word
+	return `"` + strings.Join(words, `" "`) + `"`
+}
+
 func searchHandler(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		slog.Debug("searchHandler", "err", err)
@@ -55,7 +68,9 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slog.Debug("searchHandler", "query", query)
-	pages, err := database.QueryPages(query)
+	sanitizedQuery := sanitizeQuery(query)
+	slog.Debug("searchHandler", "sanitized", sanitizedQuery)
+	pages, err := database.QueryPages(sanitizedQuery)
 	if err != nil {
 		slog.Error("database.QueryPages", "query", query, "err", err)
 		http.Error(w, err.Error(), 500)

@@ -5,6 +5,7 @@ import (
 	"embed"
 	"log/slog"
 	"math/rand/v2"
+	urlPkg "net/url"
 	"os"
 	"strings"
 	"time"
@@ -16,6 +17,9 @@ import (
 
 //go:embed templates
 var assetFS embed.FS
+
+// URLs crawled younger than this will not be recrawled
+const recrawlInterval = time.Hour * 24 * 7
 
 func main() {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
@@ -52,7 +56,17 @@ func main() {
 				continue
 			}
 
-			// TODO: normalize URL
+			u, err := urlPkg.Parse(line)
+			if err != nil {
+				slog.Error("URL parse", "line", line, "err", err)
+				os.Exit(1)
+			}
+			// Normalize URL: require path, remove fragment
+			if u.Path == "" {
+				u.Path = "/"
+			}
+			u.Fragment = ""
+			line = u.String()
 
 			// Don't re-crawl recent URLs
 			crawledAt, err := database.WhenCrawled(line)
@@ -60,7 +74,7 @@ func main() {
 				slog.Error("database.WhenCrawled", "err", err)
 				os.Exit(1)
 			}
-			if crawledAt.After(time.Now().Add(-time.Hour * 24)) {
+			if crawledAt.After(time.Now().Add(-recrawlInterval)) {
 				slog.Debug("ingest: skipping already crawled recently", "url", line)
 				continue
 			}
