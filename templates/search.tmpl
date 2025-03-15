@@ -4,6 +4,10 @@
   <input type=submit value=Search />
 </form>
 {{ range .Results }}
+{{ if eq .Title "" }}
+<p><a href="{{.URL}}">{{.URL}}</a> ({{.Host}})</p>
+{{ else }}
 <p><a href="{{.URL}}">{{.Title}}</a> ({{.Host}})</p>
+{{ end }}
 {{ end }}
 {{ template "footer" }}
