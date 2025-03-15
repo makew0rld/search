@@ -13,7 +13,9 @@ var db *sql.DB
 
 func Init(path string) error {
 	var err error
-	db, err = sql.Open("sqlite3", path)
+	// Use IMMEDIATE transactions because they are better
+	// https://kerkour.com/sqlite-for-servers
+	db, err = sql.Open("sqlite3", path+"?_txlock=immediate")
 	if err != nil {
 		return err
 	}
@@ -53,12 +55,38 @@ type Page struct {
 
 // InsertPage adds the given page to the database.
 // It assumes you have already logged the page URL.
+// If a page with that URL already exists in the database, it will be replaced.
 func InsertPage(page *Page) error {
-	_, err := db.Exec(
-		`INSERT INTO pages VALUES (?,?,?,?)`,
-		page.URL, page.Title, page.Body, page.CrawledAt.Format(time.RFC3339),
-	)
-	return err
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var pageExists bool
+	err = tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM pages WHERE url = ?)`, page.URL).Scan(&pageExists)
+	if err != nil {
+		return err
+	}
+
+	if pageExists {
+		_, err = tx.Exec(
+			`UPDATE pages SET title = ?, body = ?, crawled_at = ?
+			WHERE url = ?`,
+			page.Title, page.Body, page.CrawledAt.Format(time.RFC3339),
+			page.URL,
+		)
+	} else {
+		_, err = tx.Exec(
+			`INSERT INTO pages VALUES (?,?,?,?)`,
+			page.URL, page.Title, page.Body, page.CrawledAt.Format(time.RFC3339),
+		)
+	}
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func LogURL(url string, crawledAt time.Time) error {
