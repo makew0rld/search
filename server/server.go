@@ -102,6 +102,6 @@ func Serve(addr string, assetFS fs.FS) error {
 	http.HandleFunc("GET /", rootHandler)
 	http.HandleFunc("GET /search", searchHandler)
 
-	slog.Info("listening on", "addr", addr)
+	slog.Info("starting server", "addr", addr)
 	return http.ListenAndServe(addr, nil)
 }

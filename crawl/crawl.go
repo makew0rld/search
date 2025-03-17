@@ -14,6 +14,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly/v2"
 	"github.com/gocolly/colly/v2/queue"
+	"github.com/makew0rld/search/config"
 	"github.com/makew0rld/search/database"
 )
 
@@ -26,7 +27,7 @@ func Crawl(urls []string) error {
 
 	c := colly.NewCollector(
 		colly.MaxDepth(1),
-		colly.UserAgent("makeworld personal search"),
+		colly.UserAgent(config.Config.UserAgent),
 	)
 	c.IgnoreRobotsTxt = false
 
@@ -135,7 +136,7 @@ func onResponse(r *colly.Response) {
 }
 
 func htmlToPlain(body []byte) (string, error) {
-	cmd := exec.Command("pandoc", "--quiet", "--sandbox", "-f", "html", "-t", "plain")
+	cmd := exec.Command(config.Config.PandocPath, "--quiet", "--sandbox", "-f", "html", "-t", "plain")
 	cmd.Stdin = bytes.NewReader(body)
 	var out strings.Builder
 	cmd.Stdout = &out
@@ -145,7 +146,7 @@ func htmlToPlain(body []byte) (string, error) {
 }
 
 func pdfToPlain(body []byte) (string, error) {
-	cmd := exec.Command("pdftotext", "-", "-")
+	cmd := exec.Command(config.Config.PdfToTextPath, "-", "-")
 	cmd.Stdin = bytes.NewReader(body)
 	var out strings.Builder
 	cmd.Stdout = &out

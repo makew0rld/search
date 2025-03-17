@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/makew0rld/search/config"
 	"github.com/makew0rld/search/crawl"
 	"github.com/makew0rld/search/database"
 	"github.com/makew0rld/search/server"
@@ -18,14 +19,16 @@ import (
 //go:embed templates
 var assetFS embed.FS
 
-// URLs crawled younger than this will not be recrawled
-const recrawlInterval = time.Hour * 24 * 7
-
 func main() {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 
 	if len(os.Args) == 1 {
 		slog.Error("provide subcommand")
+		os.Exit(1)
+	}
+
+	if err := config.Init(); err != nil {
+		slog.Error("config.Init", "err", err)
 		os.Exit(1)
 	}
 
@@ -74,7 +77,7 @@ func main() {
 				slog.Error("database.WhenCrawled", "err", err)
 				os.Exit(1)
 			}
-			if crawledAt.After(time.Now().Add(-recrawlInterval)) {
+			if crawledAt.After(time.Now().Add(-time.Duration(config.Config.RecrawlInterval) * 24 * time.Hour)) {
 				slog.Debug("ingest: skipping already crawled recently", "url", line)
 				continue
 			}
@@ -101,7 +104,7 @@ func main() {
 			slog.Error("database.Init", "err", err)
 			os.Exit(1)
 		}
-		if err := server.Serve(":8000", assetFS); err != nil {
+		if err := server.Serve(config.Config.Address, assetFS); err != nil {
 			slog.Error("server.Serve", "err", err)
 			os.Exit(1)
 		}

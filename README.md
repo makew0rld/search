@@ -12,6 +12,10 @@ This project was inspired by [technomancy search](https://search.technomancy.us/
 ## Usage
 
 ```bash
+# Set up a config
+cp config.example.toml config.toml
+# Edit as desired
+
 # First index pages
 ./search index urls.txt
 

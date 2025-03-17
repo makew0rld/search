@@ -1,0 +1,15 @@
+# Default config file for search
+
+# Change this to something like "<your name> personal search"
+user_agent = "Go-http-client/1.1"
+
+# Web server IP and port
+address = "127.0.0.1:8000"
+
+# How long to wait before crawling content that has already been crawled
+# previously, in days.
+recrawl_interval = 91
+
+# Binary paths
+pandoc_path = "pandoc"
+pdftotext_path = "pdftotext"

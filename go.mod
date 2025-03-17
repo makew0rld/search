@@ -3,6 +3,7 @@ module github.com/makew0rld/search
 go 1.24.0
 
 require (
+	github.com/BurntSushi/toml v1.4.0
 	github.com/PuerkitoBio/goquery v1.5.1
 	github.com/gocolly/colly/v2 v2.1.1-0.20240605174350-99b7fb1b87d1
 	github.com/mattn/go-sqlite3 v1.14.24
